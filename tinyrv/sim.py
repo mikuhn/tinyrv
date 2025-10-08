@@ -1,4 +1,5 @@
-import struct, collections, functools
+import struct, collections, functools, json
+from contextlib import nullcontext
 from .opcodes import csrs
 from .common import *
 from .fpu import f32, f64
@@ -336,8 +337,8 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _fsqrt_d   (self, rs1, rd, rm,        **_): self.pc+=4; f = f64.sqrt(self.f.raw_d[rs1]                                                              , rm=(self.csr[self.FCSR]>>5)&7 if rm==7 else rm                     ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
     def hook_exec(self): return True
     def unimplemented(self, **_): print(f'\n{zext(64,self.op.addr):08x}: unimplemented: {zext(32,self.op.data):08x} {self.op}'); self.exitcode=77
-    def step(self, trace=True):
-        self.trace_log = [] if trace else None
+    def step(self, trace=True, trace_file=None):
+        self.trace_log = [] if (trace or trace_file) else None
         try: addr = self.pa(self.pc, access='x')
         except Trap as t: self.mtrap(t.tval, t.cause); return
         self.op = decode(struct.unpack_from('I', *self.page_and_offset(addr))[0], 0, self.xlen); self.op.addr=addr  # setting op.addr afterwards enables opcode caching.
@@ -347,7 +348,12 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
             else: getattr(self, '_'+self.op.name, self.unimplemented)(**self.op.args)  # dynamic instruction dispatch
             if trace: print(f'{zext(64,self.op.addr):08x}: {str(self.op):40} # { {0:"U",1:"S",2:"H",3:"M"}[self.plevel]} [{self.cycle-1}]', ' '.join(self.trace_log))
             if trace and self.pc-self.op.addr not in (2, 4): print()
-    def run(self, limit=0, bpts=set(), trace=True):
-        while True:
-            self.step(trace=trace)
-            if self.op.addr in bpts|{self.pc} or (limit := limit-1)==0: break
+            if trace_file:
+                instruction = {"address": f'{zext(64,self.op.addr):08x}', "operation": f'{str(self.op):40}', "plevel": f'{ {0:"U",1:"S",2:"H",3:"M"}[self.plevel]}', "counter": self.cycle-1, "trace_log": self.trace_log, "bb_end": self.pc-self.op.addr not in (2, 4)}
+                trace_file.write(f'{json.dumps(instruction)}\n')
+            
+    def run(self, limit=0, bpts=set(), trace=True, trace_file=None):
+        with open(trace_file, 'w') if trace_file is not None else nullcontext() as trace_file:
+            while True:
+                self.step(trace=trace, trace_file=trace_file)
+                if self.op.addr in bpts|{self.pc} or (limit := limit-1)==0: break
