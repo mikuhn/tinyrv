@@ -47,7 +47,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
                     if i == csr1: self._csr[csr2] = self._csr[csr2]&~mask | d&mask
                     elif i == csr2: self._csr[csr1] = self._csr[csr1]&~mask | d&mask
     def __init__(self, xlen=64, trap_misaligned=True):
-        self.xlen, self.trap_misaligned, self.trace_log = xlen, trap_misaligned, []
+        self.xlen, self.trap_misaligned, self.trace_log, self.memory_address = xlen, trap_misaligned, [], ""
         self.pc, self.x, self.f, self.csr, self.lr_res_addr, self.cycle, self.plevel, self.mem_psize, self.mem_pages = 0, self.rvregs(self.xlen, self), self.rvfregs(64, self), self.rvcsrs(self.xlen, self), -1, 0, 3, 2<<20, collections.defaultdict(functools.partial(bytearray, 2<<20+2))  # 2-byte overlap for loading unaligned 32-bit opcodes
         [setattr(self, n.upper(), i) for i, n in list(enumerate(iregs))+list(csrs.items())]  # convenience
         self.csr[self.MSTATUS] = 0x6000  # FPU is active by default
@@ -110,6 +110,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
         try: addr = self.pa(addr, access='w')
         except Trap as t: self.mtrap(t.tval, t.cause); return
         if self.trace_log is not None: self.trace_log.append(f'{xfmt(struct.calcsize(format)*8, data)}->mem[{xfmt(self.xlen, addr)}]')
+        self.memory_address = xfmt(self.xlen, addr)
         if self.trap_misaligned and addr&(struct.calcsize(format)-1) != 0: self.mtrap(addr, 6)
         else: struct.pack_into(format, *self.page_and_offset(zext(self.xlen,addr)), data)
         if notify: self.notify_stored(zext(self.xlen,addr))
@@ -122,6 +123,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
         if notify: self.notify_loading(addr)
         data = struct.unpack_from(format, *self.page_and_offset(addr))[0]
         if self.trace_log is not None: self.trace_log.append(f'mem[{xfmt(self.xlen, addr)}]->{xfmt(struct.calcsize(format)*8, data)}')
+        self.memory_address = xfmt(self.xlen, addr)
         return data
     def idiv2zero(self, a, b): return -(-a // b) if (a < 0) ^ (b < 0) else a // b
     def rem2zero(self, a, b): return a - b * self.idiv2zero(a, b)
@@ -339,6 +341,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def unimplemented(self, **_): print(f'\n{zext(64,self.op.addr):08x}: unimplemented: {zext(32,self.op.data):08x} {self.op}'); self.exitcode=77
     def step(self, trace=True, trace_file=None):
         self.trace_log = [] if (trace or trace_file) else None
+        self.memory_address = ""
         try: addr = self.pa(self.pc, access='x')
         except Trap as t: self.mtrap(t.tval, t.cause); return
         self.op = decode(struct.unpack_from('I', *self.page_and_offset(addr))[0], 0, self.xlen); self.op.addr=addr  # setting op.addr afterwards enables opcode caching.
@@ -349,7 +352,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
             if trace: print(f'{zext(64,self.op.addr):08x}: {str(self.op):40} # { {0:"U",1:"S",2:"H",3:"M"}[self.plevel]} [{self.cycle-1}]', ' '.join(self.trace_log))
             if trace and self.pc-self.op.addr not in (2, 4): print()
             if trace_file:
-                instruction = {"address": f'{zext(64,self.op.addr):08x}', "operation": f'{str(self.op):40}', "plevel": f'{ {0:"U",1:"S",2:"H",3:"M"}[self.plevel]}', "counter": self.cycle-1, "trace_log": self.trace_log, "bb_end": self.pc-self.op.addr not in (2, 4)}
+                instruction = {"address": f'{zext(64,self.op.addr):08x}', "operation": f'{str(self.op):40}', "plevel": f'{ {0:"U",1:"S",2:"H",3:"M"}[self.plevel]}', "counter": self.cycle-1, "trace_log": self.trace_log, "bb_end": self.pc-self.op.addr not in (2, 4), "memory_address": self.memory_address}
                 trace_file.write(f'{json.dumps(instruction)}\n')
             
     def run(self, limit=0, bpts=set(), trace=True, trace_file=None):
