@@ -337,6 +337,9 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _fmin_d    (self, rs1, rs2, rd,       **_): self.pc+=4; f = f64.min(self.f.raw_d[rs1], self.f.raw_d[rs2]                                                                                                                 ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
     def _fmax_d    (self, rs1, rs2, rd,       **_): self.pc+=4; f = f64.max(self.f.raw_d[rs1], self.f.raw_d[rs2]                                                                                                                 ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
     def _fsqrt_d   (self, rs1, rd, rm,        **_): self.pc+=4; f = f64.sqrt(self.f.raw_d[rs1]                                                              , rm=(self.csr[self.FCSR]>>5)&7 if rm==7 else rm                     ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
+    def _cbo_clean (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
+    def _cbo_flush (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
+    def _cbo_inval (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
     def hook_exec(self): return True
     def unimplemented(self, **_): print(f'\n{zext(64,self.op.addr):08x}: unimplemented: {zext(32,self.op.data):08x} {self.op}'); self.exitcode=77
     def step(self, trace=True, trace_file=None):
