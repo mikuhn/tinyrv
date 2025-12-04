@@ -150,7 +150,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _lwu       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = self.load('I', self.x[rs1]+imm12, self.x[rd])
     def _addi      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  +          imm12)
     def _xori      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  ^          imm12)
-    def _ori       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  |          imm12)
+    def _ori       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  |          imm12); self.memory_address = xfmt(self.xlen, self.x[rs1]) if rd == 0 else "" # prefetch instructions are encoded as ori
     def _andi      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  &          imm12)
     def _addiw     (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(32,          self.x[rs1]  +          imm12)
     def _addw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32, sext(32, self.x[rs1]) + sext(32, self.x[rs2]))
