@@ -150,7 +150,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _lwu       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = self.load('I', self.x[rs1]+imm12, self.x[rd])
     def _addi      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  +          imm12)
     def _xori      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  ^          imm12)
-    def _ori       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  |          imm12); self.memory_address = xfmt(self.xlen, self.x[rs1]) if rd == 0 else "" # prefetch instructions are encoded as ori
+    def _ori       (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  |          imm12); self.hint_instr(self.x[rs1], imm12) if rd == 0 else None # prefetch instructions are encoded as ori
     def _andi      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  &          imm12)
     def _addiw     (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = sext(32,          self.x[rs1]  +          imm12)
     def _addw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32, sext(32, self.x[rs1]) + sext(32, self.x[rs2]))
@@ -161,9 +161,9 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _or        (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  |          self.x[rs2])
     def _and       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  &          self.x[rs2])
     def _sltiu     (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = zext(self.xlen,   self.x[rs1]) < zext(self.xlen, imm12)
-    def _sltu      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = zext(self.xlen,   self.x[rs1]) < zext(self.xlen, self.x[rs2])
+    def _sltu      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = zext(self.xlen,   self.x[rs1]) < zext(self.xlen, self.x[rs2]); self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
     def _slti      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 imm12
-    def _slt       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 self.x[rs2]
+    def _slt       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 self.x[rs2]; self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
     def _slliw     (self, rd, rs1, shamtw,    **_): self.pc+=4; self.x[rd] = sext(32,                        self.x[rs1]  << shamtw)
     def _srliw     (self, rd, rs1, shamtw,    **_): self.pc+=4; self.x[rd] = sext(32,        zext(32,        self.x[rs1]) >> shamtw)
     def _sraiw     (self, rd, rs1, shamtw,    **_): self.pc+=4; self.x[rd] = sext(32,        sext(32,        self.x[rs1]) >> shamtw)
@@ -337,14 +337,19 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _fmin_d    (self, rs1, rs2, rd,       **_): self.pc+=4; f = f64.min(self.f.raw_d[rs1], self.f.raw_d[rs2]                                                                                                                 ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
     def _fmax_d    (self, rs1, rs2, rd,       **_): self.pc+=4; f = f64.max(self.f.raw_d[rs1], self.f.raw_d[rs2]                                                                                                                 ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
     def _fsqrt_d   (self, rs1, rd, rm,        **_): self.pc+=4; f = f64.sqrt(self.f.raw_d[rs1]                                                              , rm=(self.csr[self.FCSR]>>5)&7 if rm==7 else rm                     ); self.f.d[rd] = f.float; self.csr[self.FCSR] |= f.flags
-    def _cbo_clean (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
-    def _cbo_flush (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
-    def _cbo_inval (self, rs1,                **_): self.pc+=4; self.memory_address = xfmt(self.xlen, self.x[rs1])
+    def _cbo_clean (self, rs1,                **_): self.pc+=4; self.hint_address = xfmt(self.xlen, self.x[rs1])
+    def _cbo_flush (self, rs1,                **_): self.pc+=4; self.hint_address = xfmt(self.xlen, self.x[rs1])
+    def _cbo_inval (self, rs1,                **_): self.pc+=4; self.hint_address = xfmt(self.xlen, self.x[rs1])
     def hook_exec(self): return True
     def unimplemented(self, **_): print(f'\n{zext(64,self.op.addr):08x}: unimplemented: {zext(32,self.op.data):08x} {self.op}'); self.exitcode=77
+    def hint_instr(self, arg1, arg2):
+        self.hint_address = xfmt(self.xlen, arg1)
+        self.hint_value = xfmt(self.xlen, arg2)
     def step(self, trace=True, trace_file=None):
         self.trace_log = [] if (trace or trace_file) else None
         self.memory_address = ""
+        self.hint_address = ""
+        self.hint_value = ""
         try: addr = self.pa(self.pc, access='x')
         except Trap as t: self.mtrap(t.tval, t.cause); return
         self.op = decode(struct.unpack_from('I', *self.page_and_offset(addr))[0], 0, self.xlen); self.op.addr=addr  # setting op.addr afterwards enables opcode caching.
@@ -355,7 +360,10 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
             if trace: print(f'{zext(64,self.op.addr):08x}: {str(self.op):40} # { {0:"U",1:"S",2:"H",3:"M"}[self.plevel]} [{self.cycle-1}]', ' '.join(self.trace_log))
             if trace and self.pc-self.op.addr not in (2, 4): print()
             if trace_file:
-                instruction = {"address": f'{zext(64,self.op.addr):08x}', "operation": f'{str(self.op):40}', "plevel": f'{ {0:"U",1:"S",2:"H",3:"M"}[self.plevel]}', "counter": self.cycle-1, "trace_log": self.trace_log, "bb_end": self.pc-self.op.addr not in (2, 4), "memory_address": self.memory_address}
+                instruction = {"address": f'{zext(64,self.op.addr):08x}', "operation": f'{str(self.op):40}', "plevel": f'{ {0:"U",1:"S",2:"H",3:"M"}[self.plevel]}', "counter": self.cycle-1, "trace_log": self.trace_log}
+                instruction.update({"bb_end": self.pc-self.op.addr not in (2, 4), "memory_address": self.memory_address})
+                if self.hint_address or self.hint_value:
+                    instruction.update({"hint_arg1": self.hint_address, "hint_arg2": self.hint_value})
                 trace_file.write(f'{json.dumps(instruction)}\n')
             
     def run(self, limit=0, bpts=set(), trace=True, trace_file=None):
