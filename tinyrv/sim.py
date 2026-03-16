@@ -174,7 +174,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _srli      (self, rd, rs1, shamtd,    **_): self.pc+=4; self.x[rd] = sext(self.xlen, zext(self.xlen, self.x[rs1]) >> shamtd)  # shared with RV64I
     def _sll       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  << (self.x[rs2]&(self.xlen-1)))
     def _srl       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen, zext(self.xlen, self.x[rs1]) >> (self.x[rs2]&(self.xlen-1)))
-    def _sra       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  >> (self.x[rs2]&(self.xlen-1)))
+    def _sra       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  >> (self.x[rs2]&(self.xlen-1))); self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
     def _sllw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        sext(32,        self.x[rs1]) << (self.x[rs2]&31))
     def _srlw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        zext(32,        self.x[rs1]) >> (self.x[rs2]&31))
     def _sraw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        sext(32,        self.x[rs1]) >> (self.x[rs2]&31))
