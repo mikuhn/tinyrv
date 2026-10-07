@@ -162,7 +162,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _and       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,   self.x[rs1]  &          self.x[rs2])
     def _sltiu     (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] = zext(self.xlen,   self.x[rs1]) < zext(self.xlen, imm12)
     def _sltu      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = zext(self.xlen,   self.x[rs1]) < zext(self.xlen, self.x[rs2]); self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
-    def _slti      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 imm12
+    def _slti      (self, rd, rs1, imm12,     **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 imm12; self.hint_instr(self.x[rs1], imm12) if rd == 0 else None  # custom-use HINT: storequeue.ctrl sub-opcode in imm12
     def _slt       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] =                   self.x[rs1]  <                 self.x[rs2]; self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
     def _slliw     (self, rd, rs1, shamtw,    **_): self.pc+=4; self.x[rd] = sext(32,                        self.x[rs1]  << shamtw)
     def _srliw     (self, rd, rs1, shamtw,    **_): self.pc+=4; self.x[rd] = sext(32,        zext(32,        self.x[rs1]) >> shamtw)
@@ -174,7 +174,7 @@ class sim:  # simulates RV32GC, RV64GC (i.e. IMAFDCZicsr_Zifencei)
     def _srli      (self, rd, rs1, shamtd,    **_): self.pc+=4; self.x[rd] = sext(self.xlen, zext(self.xlen, self.x[rs1]) >> shamtd)  # shared with RV64I
     def _sll       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  << (self.x[rs2]&(self.xlen-1)))
     def _srl       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen, zext(self.xlen, self.x[rs1]) >> (self.x[rs2]&(self.xlen-1)))
-    def _sra       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  >> (self.x[rs2]&(self.xlen-1))); self.hint_instr(self.x[rs1], self.x[rs2]) if rd == 0 else None
+    def _sra       (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(self.xlen,                 self.x[rs1]  >> (self.x[rs2]&(self.xlen-1)))  # sra rd=x0 is reserved for future standard use: not a hint
     def _sllw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        sext(32,        self.x[rs1]) << (self.x[rs2]&31))
     def _srlw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        zext(32,        self.x[rs1]) >> (self.x[rs2]&31))
     def _sraw      (self, rd, rs1, rs2,       **_): self.pc+=4; self.x[rd] = sext(32,        sext(32,        self.x[rs1]) >> (self.x[rs2]&31))
